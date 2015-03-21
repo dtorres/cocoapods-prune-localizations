@@ -24,7 +24,7 @@ module CocoapodsPruneLocalizations
           resGroup.files.each do |file|
             keep = true
             if file.path.end_with? ".lproj"
-              keep = langs_to_keep.include?(file.path)
+              keep = langs_to_keep.include?(File.basename(file.path))
             elsif file.path.end_with? ".bundle"
               trimmed_bundle = self.trimmed_bundle(file.real_path)
               if trimmed_bundle 
@@ -40,6 +40,7 @@ module CocoapodsPruneLocalizations
           if markForRemoval.length > 0
             Pod::UI.section "Pruning in #{group.path}" do
               markForRemoval.each do |file|
+                Pod::UI.message "Pruning #{file}"
                 file.remove_from_project
               end
             end
