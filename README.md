@@ -1,6 +1,9 @@
+# WARNING: This plugin doesn't work (yet)
+Because Cocoapods injects the resources in a separate process, with a script, this plugin is rendered useless as it only modifies the project references.
+
 # cocoapods-prune-localizations
 
-A description of cocoapods-prune-localizations.
+This plugin allows you to remove unused localizations provided by the Pods you depend on.
 
 ## Installation
 
@@ -8,4 +11,8 @@ A description of cocoapods-prune-localizations.
 
 ## Usage
 
-    $ pod spec localizations POD_NAME
+In your Podfile, add this line:
+
+    plugin 'cocoapods-prune-localizations', {:localizations => ["en.lproj", "es.lproj"]}
+
+This will keep the English and Spanish localizations in the Pods. Modify the localizations to your needs.
