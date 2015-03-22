@@ -3,13 +3,31 @@ require "FileUtils"
 module CocoapodsPruneLocalizations
   class Pruner
     def initialize(context, user_options)
+      @sandbox_root = Pathname.new context.sandbox_root
       @pod_project = Xcodeproj::Project.open File.join(context.sandbox_root, 'Pods.xcodeproj')
       @user_options = user_options
       @pruned_bundles_path = File.join(context.sandbox_root, "Pruned Localized Bundles")
       FileUtils.mkdir @pruned_bundles_path unless Dir.exist? @pruned_bundles_path
     end
     
+    def resources_scripts(group)
+      file_references = []
+      group.children.objects.each do |children|
+        if children.class == Xcodeproj::Project::Object::PBXFileReference && children.path.end_with?("resources.sh")
+            file_references << children
+        elsif children.class == Xcodeproj::Project::Object::PBXGroup
+            file_references.concat(self.resources_scripts(children))
+        end
+      end
+      file_references
+    end
+    
     def prune!
+      rsrc_scripts_files = Hash.new
+      self.resources_scripts(@pod_project["Targets Support Files"]).each do |file|
+        rsrc_scripts_files[file] = File.readlines(file.real_path)
+      end
+      
       langs_to_keep = @user_options["localizations"] || []
       Pod::UI.section 'Pruning unused localizations' do
         pod_groups = @pod_project["Pods"].children.objects
@@ -28,7 +46,7 @@ module CocoapodsPruneLocalizations
             elsif file.path.end_with? ".bundle"
               trimmed_bundle = self.trimmed_bundle(file.real_path)
               if trimmed_bundle 
-                trimmedBundlesToAdd[File.basename(file.path)] = trimmed_bundle
+                trimmedBundlesToAdd[file.real_path] = trimmed_bundle
                 keep = false
               end
             end
@@ -41,6 +59,18 @@ module CocoapodsPruneLocalizations
             Pod::UI.section "Pruning in #{group.path}" do
               markForRemoval.each do |file|
                 Pod::UI.message "Pruning #{file}"
+                
+                unless file.path.end_with? ".bundle"
+                  relative_path = file.real_path.relative_path_from @sandbox_root
+                  rsrc_scripts_files.each_value do |lines|
+                    for i in 0...lines.length
+                      line = lines[i]
+                      if line.include?(relative_path.to_s)
+                        lines[i] = ""
+                      end
+                    end
+                  end
+                end
                 file.remove_from_project
               end
             end
@@ -50,15 +80,32 @@ module CocoapodsPruneLocalizations
             group_path = File.join(@pruned_bundles_path, group.path)
             FileUtils.mkdir group_path unless Dir.exist? group_path
             Pod::UI.message "Adding trimmed bundles to #{group.path}" do
-              trimmedBundlesToAdd.each_pair do |bundle_name, bundle_path|
+              trimmedBundlesToAdd.each_pair do |original_bundle_path, bundle_path|
+                bundle_name = File.basename(original_bundle_path)
                 new_bundle_path = File.join(group_path, bundle_name)
                 FileUtils.rm_r(new_bundle_path) if File.exist? new_bundle_path
                 FileUtils.mv(bundle_path, new_bundle_path)
                 group.new_reference(new_bundle_path)
+                
+                relative_path = original_bundle_path.relative_path_from(@sandbox_root).to_s
+                new_relative_path = Pathname.new(new_bundle_path).relative_path_from(@sandbox_root).to_s
+                rsrc_scripts_files.each_value do |lines|
+                  for i in 0...lines.length
+                    lines[i] = lines[i].gsub(relative_path, new_relative_path)
+                  end
+                end
               end
             end
           end
           
+        end
+        
+        rsrc_scripts_files.each_pair do |file, lines|
+          fd = File.open(file.real_path, "w")
+          lines.each do |line|
+            fd.puts line unless (line == "") 
+          end
+          fd.close
         end
         @pod_project.save
       end
