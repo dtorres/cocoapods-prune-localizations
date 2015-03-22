@@ -1,6 +1,3 @@
-# WARNING: This plugin doesn't work (yet)
-Because Cocoapods injects the resources in a separate process, with a script, this plugin is rendered useless as it only modifies the project references.
-
 # cocoapods-prune-localizations
 
 This plugin allows you to remove unused localizations provided by the Pods you depend on.
