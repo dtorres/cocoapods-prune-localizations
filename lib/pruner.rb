@@ -29,36 +29,49 @@ module CocoapodsPruneLocalizations
       end
       
       langs_to_keep = @user_options["localizations"] || []
-      Pod::UI.section 'Pruning unused localizations' do
+      Pod::UI.title 'Pruning unused localizations' do
+
+        #Group all the Pods
         pod_groups = @pod_project["Pods"].children.objects
         dev_pod_group = @pod_project["Development Pods"]
         pod_groups += dev_pod_group.children.objects if dev_pod_group
+
         pod_groups.each do |group|
-          resGroup = group["Resources"]
-          next unless resGroup
+
+          #Gather all Resources groups
+          resGroups = group.recursive_children_groups.select do |group|
+            group.name == "Resources"
+          end
+          next unless resGroups.length > 0
           
           markForRemoval = []
           trimmedBundlesToAdd = Hash.new
-          resGroup.files.each do |file|
-            keep = true
-            if file.path.end_with? ".lproj"
-              keep = langs_to_keep.include?(File.basename(file.path))
-            elsif file.path.end_with? ".bundle"
-              trimmed_bundle = self.trimmed_bundle(file.real_path)
-              if trimmed_bundle 
-                trimmedBundlesToAdd[file.real_path] = trimmed_bundle
-                keep = false
+
+          resGroups.each do |resGroup|
+            subTrimmedBundlesToAdd = Hash.new
+            resGroup.files.each do |file|
+              keep = true
+              if file.path.end_with? ".lproj"
+                keep = langs_to_keep.include?(File.basename(file.path))
+              elsif file.path.end_with? ".bundle"
+                trimmed_bundle = self.trimmed_bundle(file.real_path)
+                if trimmed_bundle 
+                  subTrimmedBundlesToAdd[file.real_path] = trimmed_bundle
+                  keep = false
+                end
+              end
+              if !keep
+                markForRemoval << file
               end
             end
-            if !keep
-              markForRemoval << file
-            end
+            trimmedBundlesToAdd[resGroup] = subTrimmedBundlesToAdd unless subTrimmedBundlesToAdd.length == 0              
           end
-          
+
+          #Remove file references indentified for removal
           if markForRemoval.length > 0
             Pod::UI.section "Pruning in #{group.path}" do
               markForRemoval.each do |file|
-                Pod::UI.message "Pruning #{file}"
+                Pod::UI.message "- Pruning #{file}"
                 
                 unless file.path.end_with? ".bundle"
                   relative_path = file.real_path.relative_path_from @sandbox_root
@@ -75,23 +88,25 @@ module CocoapodsPruneLocalizations
               end
             end
           end
-          
+
           if trimmedBundlesToAdd.length > 0
-            group_path = File.join(@pruned_bundles_path, group.path)
-            FileUtils.mkdir group_path unless Dir.exist? group_path
-            Pod::UI.message "Adding trimmed bundles to #{group.path}" do
-              trimmedBundlesToAdd.each_pair do |original_bundle_path, bundle_path|
-                bundle_name = File.basename(original_bundle_path)
-                new_bundle_path = File.join(group_path, bundle_name)
-                FileUtils.rm_r(new_bundle_path) if File.exist? new_bundle_path
-                FileUtils.mv(bundle_path, new_bundle_path)
-                group.new_reference(new_bundle_path)
-                
-                relative_path = original_bundle_path.relative_path_from(@sandbox_root).to_s
-                new_relative_path = Pathname.new(new_bundle_path).relative_path_from(@sandbox_root).to_s
-                rsrc_scripts_files.each_value do |lines|
-                  for i in 0...lines.length
-                    lines[i] = lines[i].gsub(relative_path, new_relative_path)
+            Pod::UI.section "Adding trimmed bundles to #{group.path}" do
+              group_path = File.join(@pruned_bundles_path, group.path)
+              FileUtils.mkdir group_path unless Dir.exist? group_path
+              trimmedBundlesToAdd.each_pair do |resGroup, bundleArray|
+                bundleArray.each_pair do |original_bundle_path, bundle_path|
+                  bundle_name = File.basename(original_bundle_path)
+                  new_bundle_path = File.join(group_path, bundle_name)
+                  FileUtils.rm_r(new_bundle_path) if File.exist? new_bundle_path
+                  FileUtils.mv(bundle_path, new_bundle_path)
+                  resGroup.new_reference(new_bundle_path)
+                  
+                  relative_path = original_bundle_path.relative_path_from(@sandbox_root).to_s
+                  new_relative_path = Pathname.new(new_bundle_path).relative_path_from(@sandbox_root).to_s
+                  rsrc_scripts_files.each_value do |lines|
+                    for i in 0...lines.length
+                      lines[i] = lines[i].gsub(relative_path, new_relative_path)
+                    end
                   end
                 end
               end
