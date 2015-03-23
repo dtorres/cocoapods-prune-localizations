@@ -1,4 +1,4 @@
-# cocoapods-prune-localizations
+# Prune Localizations
 
 This plugin allows you to remove unused localizations provided by the Pods you depend on.
 
