@@ -5,11 +5,27 @@ module CocoapodsPruneLocalizations
     def initialize(context, user_options)
       @sandbox_root = Pathname.new context.sandbox_root
       @pod_project = Xcodeproj::Project.open File.join(context.sandbox_root, 'Pods.xcodeproj')
-      @user_options = user_options
+      @user_options = self.user_options(context, user_options)
       @pruned_bundles_path = File.join(context.sandbox_root, "Pruned Localized Bundles")
       FileUtils.mkdir @pruned_bundles_path unless Dir.exist? @pruned_bundles_path
     end
     
+    def self.user_options(context, orig_user_opts = {})
+      user_options = {}
+      if orig_user_opts["localizations"]
+        user_options["localizations"] = orig_user_opts["localizations"].map do |loc|
+          if loc.end_with? ".lproj"
+            loc
+          else
+            loc + ".lproj"
+          end
+        end
+      else
+        user_options["localizations"] = []
+      end
+      user_options
+    end
+
     def resources_scripts(group)
       file_references = []
       group.children.objects.each do |children|
