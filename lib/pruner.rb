@@ -1,11 +1,11 @@
-require "FileUtils"
+require_relative 'utils'
 
 module CocoapodsPruneLocalizations
   class Pruner
     def initialize(context, user_options)
       @sandbox_root = Pathname.new context.sandbox_root
       @pod_project = Xcodeproj::Project.open File.join(context.sandbox_root, 'Pods.xcodeproj')
-      @user_options = self.user_options(context, user_options)
+      @user_options = self.class.user_options(context, user_options)
       @pruned_bundles_path = File.join(context.sandbox_root, "Pruned Localized Bundles")
       FileUtils.mkdir @pruned_bundles_path unless Dir.exist? @pruned_bundles_path
     end
@@ -21,7 +21,7 @@ module CocoapodsPruneLocalizations
           end
         end
       else
-        user_options["localizations"] = []
+        user_options["localizations"] = Utils.user_project_localizations(context.umbrella_targets)
       end
       user_options
     end
