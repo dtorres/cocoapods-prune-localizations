@@ -16,6 +16,12 @@ Requires CocoaPods 0.36
 
 In your Podfile, add this line:
 
+    plugin 'cocoapods-prune-localizations'
+    
+Localizations will be inferred from your project.
+
+or if you would prefer to specify the localizations:
+
     plugin 'cocoapods-prune-localizations', {:localizations => ["en", "es"]}
 
 This will keep the English and Spanish localizations in the Pods. Modify the localizations to your needs.
