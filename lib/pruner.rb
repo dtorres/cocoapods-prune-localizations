@@ -48,9 +48,11 @@ module CocoapodsPruneLocalizations
       Pod::UI.title 'Pruning unused localizations' do
 
         #Group all the Pods
-        pod_groups = @pod_project["Pods"].children.objects
-        dev_pod_group = @pod_project["Development Pods"]
-        pod_groups += dev_pod_group.children.objects if dev_pod_group
+        pod_groups = []
+        pod_items = @pod_project["Pods"]
+        dev_pod_items = @pod_project["Development Pods"]
+        pod_groups += pod_items.children.objects if pod_items
+        pod_groups += dev_pod_items.children.objects if dev_pod_items
 
         pod_groups.each do |group|
 
