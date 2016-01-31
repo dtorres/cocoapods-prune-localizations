@@ -74,8 +74,8 @@ module CocoapodsPruneLocalizations
               elsif file.path.end_with? ".bundle"
                 trimmed_bundle = self.trimmed_bundle(file.real_path)
                 if trimmed_bundle 
-                  subTrimmedBundlesToAdd[file.real_path] = trimmed_bundle
-                  keep = false
+                  subTrimmedBundlesToAdd[file.real_path] = [trimmed_bundle, file]
+                  keep = true
                 end
               end
               if !keep
@@ -91,14 +91,12 @@ module CocoapodsPruneLocalizations
               markForRemoval.each do |file|
                 Pod::UI.message "- Pruning #{file}"
                 
-                unless file.path.end_with? ".bundle"
-                  relative_path = file.real_path.relative_path_from @sandbox_root
-                  rsrc_scripts_files.each_value do |lines|
-                    for i in 0...lines.length
-                      line = lines[i]
-                      if line.include?(relative_path.to_s)
-                        lines[i] = ""
-                      end
+                relative_path = file.real_path.relative_path_from @sandbox_root
+                rsrc_scripts_files.each_value do |lines|
+                  for i in 0...lines.length
+                    line = lines[i]
+                    if line.include?(relative_path.to_s)
+                      lines[i] = ""
                     end
                   end
                 end
@@ -112,13 +110,17 @@ module CocoapodsPruneLocalizations
               group_path = File.join(@pruned_bundles_path, group.path)
               FileUtils.mkdir group_path unless Dir.exist? group_path
               trimmedBundlesToAdd.each_pair do |resGroup, bundleArray|
-                bundleArray.each_pair do |original_bundle_path, bundle_path|
+                bundleArray.each_pair do |original_bundle_path, bundle_arr|
+                  bundle_path = bundle_arr[0]
+                  original_file = bundle_arr[1]
                   bundle_name = File.basename(original_bundle_path)
                   new_bundle_path = File.join(group_path, bundle_name)
                   FileUtils.rm_r(new_bundle_path) if File.exist? new_bundle_path
                   FileUtils.mv(bundle_path, new_bundle_path)
-                  resGroup.new_reference(new_bundle_path)
-                  
+                  # Update Project path
+                  original_file.set_path(new_bundle_path)
+
+                  # Update Resource Scripts path
                   relative_path = original_bundle_path.relative_path_from(@sandbox_root).to_s
                   new_relative_path = Pathname.new(new_bundle_path).relative_path_from(@sandbox_root).to_s
                   rsrc_scripts_files.each_value do |lines|
