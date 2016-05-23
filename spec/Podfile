@@ -1,0 +1,5 @@
+plugin 'cocoapods-prune-localizations', {:localizations => ["en", "es"]}
+
+target 'iOSTarget' do
+  pod 'FormatterKit'
+end

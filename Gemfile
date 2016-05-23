@@ -5,6 +5,7 @@ gemspec
 
 group :development do
   gem 'cocoapods'
-  gem 'bacon'
+  gem 'cocoapods-deintegrate'
+  gem 'rspec', '~> 3.1.0'
 end
 
