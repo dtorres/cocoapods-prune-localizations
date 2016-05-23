@@ -14,11 +14,8 @@ module CocoapodsPruneLocalizations
       user_options = {}
       if orig_user_opts["localizations"]
         user_options["localizations"] = orig_user_opts["localizations"].map do |loc|
-          if loc.end_with? ".lproj"
-            loc
-          else
-            loc + ".lproj"
-          end
+          loc = loc + ".lproj" unless loc.end_with? ".lproj"
+          loc
         end
       else
         user_options["localizations"] = Utils.user_project_localizations(context.umbrella_targets)
