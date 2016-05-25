@@ -3,11 +3,11 @@ require_relative 'utils'
 module CocoapodsPruneLocalizations
   class Pruner
     def initialize(context, user_options)
-      @sandbox_root = Pathname.new context.sandbox_root
-      @pod_project = Xcodeproj::Project.open File.join(context.sandbox_root, 'Pods.xcodeproj')
       @user_options = self.class.user_options(context, user_options)
       @pruned_bundles_path = File.join(context.sandbox_root, "Pruned Localized Bundles")
       FileUtils.mkdir @pruned_bundles_path unless Dir.exist? @pruned_bundles_path
+      
+      inject_podfile_post_install_hook(context)
     end
     
     def self.user_options(context, orig_user_opts = {})
@@ -18,9 +18,25 @@ module CocoapodsPruneLocalizations
           loc
         end
       else
-        user_options["localizations"] = Utils.user_project_localizations(context.umbrella_targets)
+        user_options["localizations"] = Utils.user_project_localizations(context.podfile.target_definition_list)
       end
       user_options
+    end
+
+    #Because the pre_install hook is executed before anything at all is generated
+    #The plugin hooks to the Podfile's post_install hook, which (as documented)
+    #happens after the Project is generated but before is saved, a perfect spot for this  
+    def inject_podfile_post_install_hook(context)
+        podfile = context.podfile
+        previous_block = podfile.instance_variable_get(:@post_install_callback)
+        
+        podfile.post_install do |installer|
+            
+            @pod_project = installer.pods_project
+            @sandbox_root = installer.sandbox.root
+            prune!
+            previous_block.call(installer) if previous_block
+        end
     end
 
     def resources_scripts(group)
@@ -46,8 +62,8 @@ module CocoapodsPruneLocalizations
 
         #Group all the Pods
         pod_groups = []
-        pod_items = @pod_project["Pods"]
-        dev_pod_items = @pod_project["Development Pods"]
+        pod_items = @pod_project.pods
+        dev_pod_items = @pod_project.development_pods
         pod_groups += pod_items.children.objects if pod_items
         pod_groups += dev_pod_items.children.objects if dev_pod_items
 
@@ -139,7 +155,6 @@ module CocoapodsPruneLocalizations
           end
           fd.close
         end
-        @pod_project.save
       end
     end
     

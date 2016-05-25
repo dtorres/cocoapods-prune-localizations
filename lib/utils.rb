@@ -1,9 +1,9 @@
 module CocoapodsPruneLocalizations
   class Utils
-    def self.user_project_localizations(umbrella_targets)
+    def self.user_project_localizations(targets)
       localizations = []
-      user_projects = umbrella_targets.map { |target| target.user_project_path }
-      user_projects.uniq!
+      user_projects = targets.map { |target| target.user_project_path }
+      user_projects.uniq!.compact!
       
       user_projects.each do |project_path|
         project = Xcodeproj::Project.open project_path
