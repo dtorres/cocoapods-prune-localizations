@@ -35,6 +35,18 @@ def lproj_in_bundle(bundle_path)
     lprojs
 end
 
+def resource_files(group)
+    resGroups = group.recursive_children_groups.select do |group|
+        group.name == "Resources"
+    end
+    
+    resGroups.each do |resGroup|
+        resGroup.files.each do |file|
+            yield file
+        end
+    end
+end
+
 describe 'Podfile integration' do
     before(:each) do
         @test_dir = Dir.mktmpdir("prune-loc")
@@ -78,26 +90,29 @@ describe 'Podfile integration' do
             installer.install!
             
             project = installer.pods_project
-            group = project.pod_group("FormatterKit")
-            
-            resGroups = group.recursive_children_groups.select do |group|
-                group.name == "Resources"
-            end
+            group = project.pod_group(pods_to_use[0][:name])
             
             found_langs = Set.new
             
-            resGroups.each do |resGroup|
-                resGroup.files.each do |file|
-                    if file.path.end_with? ".lproj"
-                        found_langs.add File.basename(file.path)
-                    end
-                end
+            resource_files(group) do |file|
+                found_langs.add File.basename(file.path) if file.path.end_with? ".lproj"
             end
             
             expect(found_langs).to eq langs.to_set
         end
     end
     
+    def verify_group(group, langs)
+        found_bundles = []
+    
+        resource_files(group) do |file|
+            found_bundles << file.real_path if file.path.end_with? ".bundle"
+        end
+    
+        found_langs = found_bundles.map {|path| lproj_in_bundle(path)}.flatten!.to_set
+        expect(found_langs).to eq langs.to_set
+    end
+
     it 'keeps only specified languages in Bundles' do
         
         pods_to_use = [{:name => "DateTools"}]
@@ -112,23 +127,10 @@ describe 'Podfile integration' do
             installer.install!
             
             project = installer.pods_project
-            group = project.pod_group("DateTools")
             
-            resGroups = group.recursive_children_groups.select do |group|
-                group.name == "Resources"
-            end
+            verify_group(project.pod_group(pods_to_use[0][:name]), langs)
             
-            found_bundles = []
-            resGroups.each do |resGroup|
-                resGroup.files.each do |file|
-                    if file.path.end_with? ".bundle"
-                        found_bundles << file.real_path
-                    end
-                end
-            end
             
-            found_langs = found_bundles.map {|path| lproj_in_bundle(path)}.flatten!.to_set
-            expect(found_langs).to eq langs.to_set
         end
     end
     
