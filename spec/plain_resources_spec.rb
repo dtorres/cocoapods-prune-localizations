@@ -129,8 +129,24 @@ describe 'Podfile integration' do
             project = installer.pods_project
             
             verify_group(project.pod_group(pods_to_use[0][:name]), langs)
+        end
+    end
+
+    it 'keeps only specified languages in nested bundles' do
+        pods_to_use = [{:name => "googleplus-ios-sdk"}]
+        
+        Dir.chdir(@test_dir) do
+            langs = ["it.lproj", "ja.lproj"]
+            podfile = generate_podfile(langs, pods_to_use)
             
+            installer = Pod::Installer.new(@sandbox, podfile, nil)
+            installer.installation_options.integrate_targets = false
             
+            installer.install!
+            
+            project = installer.pods_project
+            
+            verify_group(project.pod_group(pods_to_use[0][:name]), langs)
         end
     end
     
