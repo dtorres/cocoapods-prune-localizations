@@ -48,10 +48,15 @@ def resource_files(group)
 end
 
 describe 'Podfile integration' do
-    before(:each) do
+    
+    before(:all) do
+        @original_dir = Dir.pwd
         @test_dir = Dir.mktmpdir("prune-loc")
+    end
+    
+    before(:each) do
         @sandbox = Pod::Sandbox.new File.join(@test_dir, "/Pods");
-        FileUtils.cp_r 'spec/fixtures/Dummy Targets', @test_dir
+        FileUtils.cp_r File.join(@original_dir, 'spec/fixtures/Dummy Targets'), @test_dir
     end
     
     after(:each) do
