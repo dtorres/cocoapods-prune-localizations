@@ -30,12 +30,19 @@ module CocoapodsPruneLocalizations
         podfile = context.podfile
         previous_block = podfile.instance_variable_get(:@post_install_callback)
         
-        podfile.post_install do |installer|
-            
+        new_callback = lambda do |installer|
             @pod_project = installer.pods_project
             @sandbox_root = installer.sandbox.root
             prune!
             previous_block.call(installer) if previous_block
+        end
+        
+        if previous_block
+            podfile.instance_variable_set(:@post_install_callback, new_callback)
+        else
+            podfile.post_install do |installer|
+                new_callback.call(installer)
+            end
         end
     end
 
